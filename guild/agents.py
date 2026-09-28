@@ -15,8 +15,30 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 import duckdb
-
+from pydantic import BaseModel, Field
+from typing import List
 from guild.state import GuildState , AgentOutput
+
+class PlannerTask(BaseModel):
+    agent: str = Field(
+        description="The specialist agent responsible for this task."
+    )
+    task_description: str = Field(
+        description="The specific task the specialist must perform."
+    )
+    dependencies: List[str] = Field(
+        default_factory=list,
+        description="Tasks that must be completed before this task."
+    )
+
+
+class PlannerOutput(BaseModel):
+    plan: List[PlannerTask] = Field(
+        description="A list of specialist tasks required to complete the clinical trial criteria task."
+    )
+
+
+
 
 llm_config = None 
 knowledge_stores = None 
@@ -31,21 +53,40 @@ def configure(llm_config_in : dict , knowledge_stores_in : dict) -> None:
     """
     global llm_config , knowledge_stores
     llm_config = llm_config_in
-    knowledge_stores_in = knowledge_stores_in
+    knowledge_stores = knowledge_stores_in
 
 
-def planner_agent(state : GuildState) -> GuildState:
+def planner_agent(state: GuildState) -> GuildState:
     """
-        Receives the initial request and creates a plan
+    Receives the initial request and creates a plan.
     """
-    print("-----EXECUTING PLANER AGENT-----")
-    sop = state['sop']
-    planner_llm = llm_config['planner'].with_structured_output(schema={"plan" : []})
-    prompt = f"{sop.planner_prompt}\n\nTrial Concept : {state['initial_request']}"
-    print(f"Planner Prompt : \n{prompt}")
+    print("-----EXECUTING PLANNER AGENT-----")
+
+    sop = state["sop"]
+
+    print("Creating structured planner LLM...")
+    planner_llm = llm_config["planner"].with_structured_output(
+        PlannerOutput
+    )
+
+    prompt = (
+        f"{sop.planner_prompt}\n\n"
+        f"Trial Concept: {state['initial_request']}"
+    )
+
+    print(f"Planner Prompt:\n{prompt}")
+    print(">>> BEFORE PLANNER LLM INVOKE")
+
     response = planner_llm.invoke(prompt)
-    print(f"Generated Plan : \n{json.dumps(response , indent=2)}")
-    return {**state , "plan" : response}
+
+    print(">>> AFTER PLANNER LLM INVOKE")
+    print(f"Generated Plan:\n{response.model_dump()}")
+
+    return {
+        **state,
+        "plan": response.model_dump()["plan"]
+    }
+
 
 
 def retrieval_agent(task_description : str , state : GuildState , retriever_name : str , agent_name : str) -> AgentOutput:
@@ -140,3 +181,8 @@ def criteria_synthesizer(state: GuildState) -> GuildState:
 
     response = drafter_llm.invoke(prompt)
     print("Final criteria generated.")
+
+    return {
+        **state,
+        "final_criteria": response.content
+    }

@@ -28,8 +28,18 @@ Title: Summary of the Belmont Report Principles for Clinical Research
 # ✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚✚
 
 def create_ethics_document() -> str:
-    ethics_path = os.path.join(data_paths['ethics'] , "belmont_summary.txt")
-    with open(ethics_path , "w") as f:
+    ethics_path = os.path.join(
+        data_paths["ethics"],
+        "belmont_summary.txt"
+    )
+
+    # Create the directory if it doesn't exist
+    os.makedirs(os.path.dirname(ethics_path), exist_ok=True)
+
+    # Write the ethics document using UTF-8 encoding
+    with open(ethics_path, "w", encoding="utf-8") as f:
         f.write(ETHICS_CONTENT)
-    print(f"Created ethics guideline file : {ethics_path}")
+
+    print(f"Created ethics guideline file: {ethics_path}")
+
     return ethics_path

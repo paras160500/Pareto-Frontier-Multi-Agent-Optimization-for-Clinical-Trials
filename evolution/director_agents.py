@@ -38,15 +38,38 @@ class Diagnosis(BaseModel):
 def performance_diagnostician(eval_result: EvaluationResult) -> Diagnosis:
     """Analyzes the 5D evaluation vector and diagnoses the primary weakness."""
     print("--- EXECUTING PERFORMANCE DIAGNOSTICIAN ---")
+
     diagnostician_llm = llm_config["director"].with_structured_output(Diagnosis)
 
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are a world-class management consultant specializing in process optimization. Your task is to analyze a performance scorecard and identify the single biggest weakness. Then, provide a root cause analysis and a strategic recommendation."),
-        ("human", "Please analyze the following performance evaluation report:\n\n{report}"),
+        (
+            "system",
+            """
+            You are a world-class management consultant specializing in
+            process optimization.
+
+            Analyze the performance scorecard and identify the single biggest weakness.
+            Then provide:
+            1. A root cause analysis.
+            2. A strategic recommendation.
+            """
+                    ),
+                    (
+                        "human",
+                        """
+            Please analyze the following performance evaluation report:
+
+            {report}
+            """
+        ),
     ])
 
     chain = prompt | diagnostician_llm
-    return chain.invoke({"report": eval_result.model_dump_json()})
+
+    return chain.invoke({
+        "report": eval_result.model_dump_json()
+    })
+
 
 
 class EvolvedSOPs(BaseModel):
@@ -57,20 +80,61 @@ class EvolvedSOPs(BaseModel):
 def sop_architect(diagnosis: Diagnosis, current_sop: GuildSOP) -> EvolvedSOPs:
     """Takes a diagnosis and the current SOP, and generates new, mutated SOPs."""
     print("--- EXECUTING SOP ARCHITECT ---")
+
     architect_llm = llm_config["director"].with_structured_output(EvolvedSOPs)
 
     prompt = ChatPromptTemplate.from_messages([
         (
             "system",
-            f"You are an AI process architect. Your job is to modify a process configuration (an SOP) "
-            f"to fix a diagnosed problem. The SOP is a JSON object with this schema: "
-            f"{GuildSOP.model_json_schema()}. You must return a list of 2-3 new, valid SOP JSON objects "
-            f"under the 'mutations' key. Propose diverse and creative mutations. For example, you can "
-            f"change prompts, toggle agents, change retrieval parameters, or even change the model "
-            f"used for a task. Only modify fields relevant to the diagnosis.",
-        ),
-        ("human", "Here is the current SOP:\n{current_sop}\n\nHere is the performance diagnosis:\n{diagnosis}\n\nBased on the diagnosis, please generate 2-3 new, improved SOPs."),
-    ])
+            """
+            You are an AI process architect.
+
+            Your job is to modify a process configuration (an SOP) to fix a diagnosed
+            performance problem.
+
+            The SOP JSON schema is provided below:
+
+            {sop_schema}
+
+            You must return a list of 2-3 new, valid SOP JSON objects under the
+            "mutations" key.
+
+            Propose diverse and creative mutations.
+
+            Possible mutations include:
+            - changing prompts
+            - toggling agents
+            - changing retrieval parameters
+            - changing model configuration
+            - improving data-processing instructions
+            - adding validation or quality-control steps
+
+            Only modify fields that are relevant to the diagnosed weakness.
+
+            Do not remove functionality unrelated to the diagnosed weakness.
+            Ensure every generated SOP conforms to the provided schema.
+            """
+                    ),
+                    (
+                        "human",
+                        """
+            Here is the current SOP:
+
+            {current_sop}
+
+            Here is the performance diagnosis:
+
+            {diagnosis}
+
+            Based on the diagnosis, generate 2-3 new, improved SOPs.
+            """
+                    ),
+                ])
 
     chain = prompt | architect_llm
-    return chain.invoke({"current_sop": current_sop.model_dump_json(), "diagnosis": diagnosis.model_dump_json()})
+
+    return chain.invoke({
+        "sop_schema": GuildSOP.model_json_schema(),
+        "current_sop": current_sop.model_dump_json(),
+        "diagnosis": diagnosis.model_dump_json(),
+    })

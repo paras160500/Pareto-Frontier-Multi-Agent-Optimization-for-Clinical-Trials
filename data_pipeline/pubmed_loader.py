@@ -25,10 +25,11 @@ def download_pubmed_articles(query : str , max_articles : int = 20) -> int:
     print(f"Fetching PubMed articles for query : {query}")
     handle = Entrez.esearch(db="pubmed" , term=query , retmax = max_articles , sort = "relevance")
     record = Entrez.read(handle)
-    id_list = record("IdList")
+    id_list = record["IdList"]
     print(f"Found {len(id_list)} article IDs.")
 
     print("Downloading articles...")
+    os.makedirs(data_paths['pubmed'], exist_ok=True)
     handle = Entrez.efetch(db="pubmed" , id=id_list , rettype = "medline" , retmode = "text")
     records = Medline.parse(handle)
 
@@ -40,8 +41,8 @@ def download_pubmed_articles(query : str , max_articles : int = 20) -> int:
 
         if pmid:
             filepath = os.path.join(data_paths['pubmed'] , f"{pmid}.txt")
-            with open(filepath , "w") as f:
-                f.write(f"Title : {title}\n\nAbstract  {abstract}")
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(f"Title : {title}\n\nAbstract : {abstract}")
 
             print(f"[{i + 1} / {len(id_list)}] fetching PMID {pmid}... Saved to {filepath}")
             count += 1 

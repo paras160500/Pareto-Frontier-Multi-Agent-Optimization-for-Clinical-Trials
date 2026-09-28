@@ -19,7 +19,7 @@ from guild.agents import planner_agent , retrieval_agent, patient_cohort_analyst
 
 def specialist_execution_node(state: GuildState) -> GuildState:
     """Executes all specialist tasks from the plan."""
-    plan_tasks = state["plan"]["plan"]
+    plan_tasks = state["plan"]
     outputs = []
 
     for task in plan_tasks:
